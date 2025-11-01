@@ -1,7 +1,7 @@
 # Makefile for Proxy Lab 
 #
 # You may modify this file any way you like (except for the handin
-# rule). You instructor will type "make" on your specific Makefile to
+# rule). You instructor will type "make" on your sp./Echo/ecific Makefile to
 # build your proxy from sources.
 
 CC = gcc
@@ -26,4 +26,14 @@ handin:
 
 clean:
 	rm -f *~ *.o proxy core *.tar *.zip *.gzip *.bzip *.gz
+#########################################
 
+echo_client.o: ./Echo/echo_client.c
+	$(CC) $(CFLAGS) -c ./Echo/echo_client.c
+
+echo_server.o: ./Echo/echo_server.c
+	$(CC) $(CFLAGS) -c ./Echo/./Echo/echo_server.c
+
+echo: echo_client.o echo_server.o
+	$(CC) $(CFLAGS) ./Echo/echo_client.o  csapp.o -o echo_client $(LDFLAGS)
+	$(CC) $(CFLAGS) ./Echo/echo_server.o  csapp.o -o echo_server $(LDFLAGS)
