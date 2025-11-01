@@ -1,4 +1,4 @@
-# Makefile for Proxy Lab 
+# Makefile for Proxy Lab
 #
 # You may modify this file any way you like (except for the handin
 # rule). You instructor will type "make" on your sp./Echo/ecific Makefile to
@@ -11,7 +11,7 @@ LDFLAGS = -lpthread
 all: proxy
 
 csapp.o: csapp.c csapp.h
-	$(CC) $(CFLAGS) -c csapp.c
+	$(CC) $(CFLAGS) -c csapp.c -o csapp.o
 
 proxy.o: proxy.c csapp.h
 	$(CC) $(CFLAGS) -c proxy.c
@@ -27,13 +27,13 @@ handin:
 clean:
 	rm -f *~ *.o proxy core *.tar *.zip *.gzip *.bzip *.gz
 #########################################
+echo: ./Echo/echo_client.o ./Echo/echo_server.o csapp.o
+	$(CC) $(CFLAGS) ./Echo/echo_client.o  csapp.o -o ./Echo/echo_client $(LDFLAGS)
+	$(CC) $(CFLAGS) ./Echo/echo_server.o  csapp.o -o ./Echo/echo_server $(LDFLAGS)
 
-echo_client.o: ./Echo/echo_client.c
-	$(CC) $(CFLAGS) -c ./Echo/echo_client.c
+./Echo/echo_client.o: ./Echo/echo_client.c
+	$(CC) $(CFLAGS) -c ./Echo/echo_client.c -o ./Echo/echo_client.o
 
-echo_server.o: ./Echo/echo_server.c
-	$(CC) $(CFLAGS) -c ./Echo/./Echo/echo_server.c
+./Echo/echo_server.o: ./Echo/echo_server.c
+	$(CC) $(CFLAGS) -c ./Echo/echo_server.c -o ./Echo/echo_server.o
 
-echo: echo_client.o echo_server.o
-	$(CC) $(CFLAGS) ./Echo/echo_client.o  csapp.o -o echo_client $(LDFLAGS)
-	$(CC) $(CFLAGS) ./Echo/echo_server.o  csapp.o -o echo_server $(LDFLAGS)
