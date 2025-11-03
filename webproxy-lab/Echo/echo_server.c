@@ -3,9 +3,6 @@
 int main(int argc, char** argv) {
     int listenfd, connfd;
     char* port;
-    struct sockaddr_storage client_addr;
-    socklen_t client_len;
-    char client_hostname[MAXLINE], client_port[MAXLINE];
     char userbuf[MAXLINE], resBuf[MAXLINE];
 
     rio_t rio;
@@ -27,8 +24,17 @@ int main(int argc, char** argv) {
 
     while (1)
     {
-        client_len = sizeof(struct sockaddr_storage);
+        struct sockaddr_in client_addr;
+        socklen_t client_len;
+        char client_hostname[MAXLINE], client_port[MAXLINE];
+
+        client_len = sizeof(client_addr);
+        // client_addr에 client 주소 정보 담아줘
         connfd = Accept(listenfd, (SA*)&client_addr, &client_len);
+        // client_hostname[MAXLINE] client_port[MAXLINE]에다가 최종적으로 담아줘
+        Getnameinfo((SA*)&client_addr, client_len, client_hostname, MAXLINE,
+                    client_port, MAXLINE, 0);
+
         if (connfd < 0) continue;
 
         Fputs("connected!!\n", stdout);
@@ -36,7 +42,9 @@ int main(int argc, char** argv) {
         rio_readinitb(&rio, connfd);
         while (rio_readlineb(&rio, userbuf, MAXBUF) != 0)
         {
-            printf("==================== start of req: %s", userbuf);
+            printf("==================== start of req: %s, %s\n",
+                   client_hostname, client_port);
+            printf("user said: %s", userbuf);
 
             strtok(userbuf, "\n");  // 마지막 줄바꿈 제거
             sprintf(
@@ -45,7 +53,8 @@ int main(int argc, char** argv) {
                 userbuf,
                 END_OF_SERVER_RES);  // Format into buf
             rio_writen(connfd, resBuf, strlen(resBuf));
-            printf("==================== end of req: %s\n\n", userbuf);
+            printf("==================== end of req: %s, %s\n\n",
+                   client_hostname, client_port);
         }
         Close(connfd);
     }
