@@ -50,6 +50,8 @@ void doit(int connfd) {
     rio_t rp;
     char rawReq[MAXBUF];
     char method[MAXLINE], uri[MAXLINE], version[MAXLINE];
+    int isStatic;
+    char filename[MAXLINE], cgiargs[MAXLINE];
 
     rio_readinitb(&rp, connfd);
     rio_readlineb(&rp, rawReq, MAXBUF);  // 일단 첫줄 받고: "GET / HTTP/1.1"
@@ -67,6 +69,8 @@ void doit(int connfd) {
 
     read_requesthdrs(&rp);
 
+    isStatic = parse_uri(uri, filename, cgiargs);
+    printf("filename: %s cgiargs: %s\n", filename, cgiargs);
     // uri로 요청 구분
     // static 응답
     // dynamic 응답
@@ -108,4 +112,33 @@ void read_requesthdrs(rio_t* rp) {
         printf("  Header: %s", headers);
     } while (strcmp(headers, "\r\n") != 0);
     printf("==================== end of headers\n\n");
+}
+
+// @return  1 static_req
+// @return  2 dynamic_req
+// @return -1 wrong_req
+int parse_uri(char* uri, char* filename, char* cgiargs) {
+    char* ptr;
+
+    if (strcmp(uri, "/") == 0)
+    {
+        strcpy(filename, "./home.html");
+
+        return 1;
+    }
+    else if (strstr(uri, "/cgi-bin/adder") != 0)
+    {
+        ptr = strchr(uri, '?');
+        if (ptr)
+            strcpy(cgiargs, ptr + 1);
+        else
+            strcpy(cgiargs, "");
+
+        strcpy(filename, "./cgi-bin/adder");
+        return 2;
+    }
+    else
+    {
+        return -1;
+    }
 }
