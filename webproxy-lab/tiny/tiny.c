@@ -109,7 +109,7 @@ void doit(int connfd) {
                         "Server does not serve such thing.");
             return;
         }
-        // server dynamic file
+        serve_dynamic(connfd, filename, cgiargs);
     }
 }
 
@@ -218,4 +218,10 @@ void get_filetype(char* filename, char* filetype) {
         strcpy(filetype, "image/jpeg");
     else
         strcpy(filetype, "text/plain");
+}
+
+void serve_dynamic(int fd, char* filename, char* cgiargs) {
+    // send res line
+    // send res header
+    // send res body
 }
