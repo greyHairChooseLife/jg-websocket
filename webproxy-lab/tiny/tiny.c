@@ -64,6 +64,9 @@ void doit(int connfd) {
                     "Server does not serve such thing.");
         return;
     }
+
+    read_requesthdrs(&rp);
+
 }
 
 void clienterror(int fd,
@@ -90,4 +93,16 @@ void clienterror(int fd,
 
     Rio_writen(fd, header, strlen(header));
     Rio_writen(fd, body, strlen(body));
+}
+
+void read_requesthdrs(rio_t* rp) {
+    char headers[MAXBUF];
+
+    printf("==================== start of headers\n");
+    do
+    {
+        rio_readlineb(rp, headers, MAXBUF);
+        printf("  Header: %s", headers);
+    } while (strcmp(headers, "\r\n") != 0);
+    printf("==================== end of headers\n\n");
 }
