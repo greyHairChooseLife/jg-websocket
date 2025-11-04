@@ -6,6 +6,14 @@
 #define MAX_OBJECT_SIZE 102400
 #define DEFAULT_DEST_PORT "80"
 
+typedef struct {
+    char Host[MAXLINE];
+    char UserAgent[MAXLINE];  // User-Agent
+    char Connection[MAXLINE];
+    char ProxyConnection[MAXLINE];  // Proxy-Connection
+    char remain[MAXLINE];
+} appendHeaders;
+
 /* You won't lose style points for including this long line in your code */
 static const char* user_agent_hdr =
     "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 "
@@ -13,7 +21,7 @@ static const char* user_agent_hdr =
 
 void readReqLine(int fd, char* method, char* uri, char* version);
 void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix);
-void read_requesthdrs(rio_t* rp);
+void read_requesthdrs(rio_t* rp, appendHeaders* headerPtr, char* destHost);
 
 int main(int argc, char** argv) {
     int listenfd, connfd;
@@ -26,6 +34,8 @@ int main(int argc, char** argv) {
         destVersion[MAXLINE];
 
     rio_t rp;
+    appendHeaders header;
+    appendHeaders* headerPtr = &header;
 
     /* Check command line args */
     if (argc != 2)
@@ -47,13 +57,19 @@ int main(int argc, char** argv) {
         printf("----- originHost: %s\n", originHost);
         printf("----- originPort: %s\n", originPort);
         printf("----- originVersion: %s\n", version);
-        printf("----- destHost: %s\n", destHost);
-        printf("----- destPort: %s\n", destPort);
-        printf("----- destSuffix: %s\n", destSuffix);
-        printf("----- destVersion: %s\n", destVersion);
+        printf("------- destHost: %s\n", destHost);
+        printf("------- destPort: %s\n", destPort);
+        printf("------- destSuffix: %s\n", destSuffix);
+        printf("------- destVersion: %s\n", destVersion);
 
         rio_readinitb(&rp, connfd);
-        read_requesthdrs(&rp);
+        read_requesthdrs(&rp, headerPtr, destHost);
+
+        printf("------- header: Host %s\n", headerPtr->Host);
+        printf("------- header: Connection %s\n", headerPtr->Connection);
+        printf("------- header: ProxyConn %s\n", headerPtr->ProxyConnection);
+        printf("------- header: UserAgent %s\n", headerPtr->UserAgent);
+        printf("------- header: remain %s\n", headerPtr->remain);
 
         Close(connfd);
     }
@@ -75,7 +91,7 @@ void readReqLine(int fd, char* method, char* uri, char* version) {
 void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix) {
     char* hostPtr;
     char result[MAXLINE];
-    char *portMayStartPtr, *suffixStartPtr, *portStartPtr;
+    char *suffixStartPtr, *portStartPtr;
 
     // uri = http://www.cmu.edu:9555/hub/index.html
 
@@ -99,14 +115,20 @@ void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix) {
     strcpy(destHost, result);
 }
 
-void read_requesthdrs(rio_t* rp) {
+void read_requesthdrs(rio_t* rp, appendHeaders* headerPtr, char* destHost) {
     char headers[MAXBUF];
+    size_t readSize;
 
-    printf("==================== start of headers\n");
+    headerPtr->remain[0] = '\0';
+    strcpy(headerPtr->Host, strcat(destHost, "\r\n"));
+
     do
     {
-        rio_readlineb(rp, headers, MAXBUF);
-        printf("  Header: %s", headers);
+        readSize = rio_readlineb(rp, headers, MAXBUF);
+        strncat(headerPtr->remain, headers, readSize);
     } while (strcmp(headers, "\r\n") != 0);
-    printf("==================== end of headers\n\n");
+
+    strcpy(headerPtr->UserAgent, (char*)user_agent_hdr);
+    strcpy(headerPtr->Connection, "close\r\n");
+    strcpy(headerPtr->ProxyConnection, "close\r\n");
 }
