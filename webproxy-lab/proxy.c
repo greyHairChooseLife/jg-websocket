@@ -14,7 +14,7 @@ void readReqLine(int fd, char* method, char* uri, char* version);
 
 int main(int argc, char** argv) {
     int listenfd, connfd;
-    char hostname[MAXLINE], port[MAXLINE];
+    char originHost[MAXLINE], originPort[MAXLINE];
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
 
@@ -32,9 +32,9 @@ int main(int argc, char** argv) {
     {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA*)&clientaddr, &clientlen);
-        Getnameinfo((SA*)&clientaddr, clientlen, hostname, MAXLINE, port,
+        Getnameinfo((SA*)&clientaddr, clientlen, originHost, MAXLINE, originPort,
                     MAXLINE, 0);
-        printf("Accepted connection from (%s, %s)\n", hostname, port);
+        printf("Accepted connection from (%s, %s)\n", originHost, originPort);
         readReqLine(connfd, method, uri, version);
         Close(connfd);
     }
