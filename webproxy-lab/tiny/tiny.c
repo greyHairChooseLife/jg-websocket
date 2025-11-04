@@ -67,6 +67,9 @@ void doit(int connfd) {
 
     read_requesthdrs(&rp);
 
+    // uri로 요청 구분
+    // static 응답
+    // dynamic 응답
 }
 
 void clienterror(int fd,
