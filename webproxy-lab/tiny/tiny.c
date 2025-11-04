@@ -52,6 +52,7 @@ void doit(int connfd) {
     char method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     int isStatic;
     char filename[MAXLINE], cgiargs[MAXLINE];
+    struct stat sbuf;
 
     rio_readinitb(&rp, connfd);
     rio_readlineb(&rp, rawReq, MAXBUF);  // 일단 첫줄 받고: "GET / HTTP/1.1"
@@ -71,9 +72,35 @@ void doit(int connfd) {
 
     isStatic = parse_uri(uri, filename, cgiargs);
     printf("filename: %s cgiargs: %s\n", filename, cgiargs);
-    // uri로 요청 구분
-    // static 응답
-    // dynamic 응답
+    stat(filename, &sbuf);  // 파일정보 얻기
+
+    if (isStatic == -1)
+    {
+        clienterror(connfd, method, "999", "week server",
+                    "Server does not serve such thing.");
+        return;
+    }
+    else if (isStatic == 1)
+    {
+        if (!S_ISREG(sbuf.st_mode) || !(S_IRUSR & sbuf.st_mode))
+        {
+            clienterror(connfd, method, "404", "couldn't read file",
+                        "Server does not serve such thing.");
+            return;
+        }
+        // server static file
+    }
+    else if (isStatic == 2)
+    {
+        if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode))
+        {
+            clienterror(connfd, filename, "403",
+                        "Forbidden to execute the file",
+                        "Server does not serve such thing.");
+            return;
+        }
+        // server dynamic file
+    }
 }
 
 void clienterror(int fd,
