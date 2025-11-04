@@ -221,7 +221,21 @@ void get_filetype(char* filename, char* filetype) {
 }
 
 void serve_dynamic(int fd, char* filename, char* cgiargs) {
-    // send res line
-    // send res header
+    char resBuf[MAXBUF];
+
+    sprintf(resBuf, "HTTP/1.0 200 OK\r\n");  // send res line
+    sprintf(resBuf, "%sServer: Tiny Web Server\r\n",
+            resBuf);  // send res header
+    Rio_writen(fd, resBuf, strlen(resBuf));
+
     // send res body
+    if (Fork() == 0)
+    {
+        setenv("QUERY_STRING", cgiargs, 1);
+        Dup2(fd, STDOUT_FILENO);
+        Execve(filename, NULL, environ);  // environ은 표준 정의되어있다. 부모
+                                          // 프로세스의 환경변수를 물려받음
+    }
+
+    Wait(NULL);
 }
