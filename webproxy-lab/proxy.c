@@ -13,6 +13,7 @@ static const char* user_agent_hdr =
 
 void readReqLine(int fd, char* method, char* uri, char* version);
 void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix);
+void read_requesthdrs(rio_t* rp);
 
 int main(int argc, char** argv) {
     int listenfd, connfd;
@@ -23,6 +24,8 @@ int main(int argc, char** argv) {
     char method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     char destHost[MAXLINE], destPort[MAXLINE], destSuffix[MAXLINE],
         destVersion[MAXLINE];
+
+    rio_t rp;
 
     /* Check command line args */
     if (argc != 2)
@@ -48,6 +51,10 @@ int main(int argc, char** argv) {
         printf("----- destPort: %s\n", destPort);
         printf("----- destSuffix: %s\n", destSuffix);
         printf("----- destVersion: %s\n", destVersion);
+
+        rio_readinitb(&rp, connfd);
+        read_requesthdrs(&rp);
+
         Close(connfd);
     }
 
@@ -90,4 +97,16 @@ void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix) {
     }
 
     strcpy(destHost, result);
+}
+
+void read_requesthdrs(rio_t* rp) {
+    char headers[MAXBUF];
+
+    printf("==================== start of headers\n");
+    do
+    {
+        rio_readlineb(rp, headers, MAXBUF);
+        printf("  Header: %s", headers);
+    } while (strcmp(headers, "\r\n") != 0);
+    printf("==================== end of headers\n\n");
 }
