@@ -72,7 +72,17 @@ void doit(int connfd) {
 
     isStatic = parse_uri(uri, filename, cgiargs);
     printf("filename: %s cgiargs: %s\n", filename, cgiargs);
-    stat(filename, &sbuf);  // 파일정보 얻기
+
+    // 파일정보 얻기
+    // 만약 없는 파일 요청하면 해당 요청은 에러 응답
+    // On success, zero is returned.  On error, -1 is returned, and errno is set
+    // to indicate the error.
+    if (stat(filename, &sbuf) < 0)
+    {
+        clienterror(connfd, method, "404", "there is no such file",
+                    "Server does not serve such thing.");
+        return;
+    }
 
     if (isStatic == -1)
     {
@@ -166,8 +176,11 @@ int parse_uri(char* uri, char* filename, char* cgiargs) {
     }
     else
     {
-        return -1;
+        strcpy(filename, ".");
+        strcat(filename, uri);
+        return 1;
     }
+    return -1;
 }
 
 void serve_static(int fd, char* filename, int filesize) {
