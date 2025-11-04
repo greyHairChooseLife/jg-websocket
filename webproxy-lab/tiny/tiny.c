@@ -199,6 +199,8 @@ int parse_uri(char* uri, char* filename, char* cgiargs) {
 void serve_static(int fd, char* filename, int filesize) {
     int srcfd;
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
+    char chunk[BUFSIZ];  // Use a buffer size like 8192
+    ssize_t nread;
 
     /* Send response headers to client */
     get_filetype(filename, filetype);
@@ -212,12 +214,16 @@ void serve_static(int fd, char* filename, int filesize) {
     printf("Response headers:\n");
     printf("%s", buf);
 
-    /* Send response body to client */
     srcfd = Open(filename, O_RDONLY, 0);
-    srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+    while ((nread = Read(srcfd, chunk, BUFSIZ)) > 0)
+    {
+        if (rio_writen(fd, chunk, nread) != nread)
+        {
+            // Handle write error if needed
+            break;
+        }
+    }
     Close(srcfd);
-    Rio_writen(fd, srcp, filesize);
-    Munmap(srcp, filesize);
 }
 
 void serve_dynamic(int fd, char* filename, char* cgiargs) {
