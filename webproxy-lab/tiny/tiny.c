@@ -52,10 +52,10 @@ void doit(int connfd) {
     char method[MAXLINE], uri[MAXLINE], version[MAXLINE];
 
     rio_readinitb(&rp, connfd);
-    rio_readlineb(&rp, rawReq, MAXBUF);
+    rio_readlineb(&rp, rawReq, MAXBUF);  // 일단 첫줄 받고: "GET / HTTP/1.1"
     printf("req in raw ----------> %s", rawReq);
 
-    sscanf(rawReq, "%s %s %s", method, uri, version);  // GET / HTTP/1.1
+    sscanf(rawReq, "%s %s %s", method, uri, version);
     printf("req in [%s %s %s]\n", method, uri, version);
 
     if (strcasecmp(method, "GET"))  // returns not "\0" when it's different
