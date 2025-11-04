@@ -88,7 +88,7 @@ void doit(int connfd) {
                         "Server does not serve such thing.");
             return;
         }
-        // server static file
+        serve_static(connfd, filename, sbuf.st_size);
     }
     else if (isStatic == 2)
     {
@@ -168,4 +168,41 @@ int parse_uri(char* uri, char* filename, char* cgiargs) {
     {
         return -1;
     }
+}
+
+void serve_static(int fd, char* filename, int filesize) {
+    // for headers
+    char resHeaders[MAXBUF], filetype[MAXLINE];
+    // for body
+    int srcFd;
+    char* srcPtr;
+
+    // 1. send res header
+    get_filetype(filename, filetype);
+    sprintf(resHeaders, "HTTP/1.0 200 OK\r\n");
+    sprintf(resHeaders, "%sServer: Tiny Web Server\r\n", resHeaders);
+    sprintf(resHeaders, "%sConnection: close\r\n", resHeaders);
+    sprintf(resHeaders, "%sContent-length: %d\r\n", resHeaders, filesize);
+    sprintf(resHeaders, "%sContent-type: %s\r\n\r\n", resHeaders, filetype);
+    Rio_writen(fd, resHeaders, strlen(resHeaders));
+
+    // 2. send res body
+    srcFd = Open(filename, O_RDONLY, 0);
+    srcPtr = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcFd, 0);
+    Close(srcFd);
+    Rio_writen(fd, srcPtr, filesize);
+    Munmap(srcPtr, filesize);
+}
+
+void get_filetype(char* filename, char* filetype) {
+    if (strstr(filename, ".html"))
+        strcpy(filetype, "text/html");
+    else if (strstr(filename, ".gif"))
+        strcpy(filetype, "image/gif");
+    else if (strstr(filename, ".png"))
+        strcpy(filetype, "image/png");
+    else if (strstr(filename, ".jpg"))
+        strcpy(filetype, "image/jpeg");
+    else
+        strcpy(filetype, "text/plain");
 }
