@@ -214,7 +214,8 @@ void recieve_response(int fwdClieFd, int originConnFd) {
     do
     {
         readSize = rio_readlineb(&rp, readBuf, MAXBUF);
-        printf("recieved line & headers: %s", readBuf);
+        rio_writen(originConnFd, readBuf, strlen(readBuf));
+        /* printf("recieved line & headers: %s\n", readBuf); */
         if ((p = strstr(readBuf, "Content-Length: ")) != NULL)
         {
             // 문자열에서 포멧을 지정해 바로 담을 수 있다.
@@ -227,6 +228,7 @@ void recieve_response(int fwdClieFd, int originConnFd) {
     {
         readSize = rio_readlineb(&rp, readBuf, MAXBUF);
         totalReadSize += readSize;
-        printf("recieved body: %s", readBuf);
+        rio_writen(originConnFd, readBuf, strlen(readBuf));
+        /* printf("recieved body: %s\n", readBuf); */
     } while (totalReadSize != contentLength);
 }
