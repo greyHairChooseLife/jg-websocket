@@ -135,9 +135,7 @@ void read_requesthdrs(int originConnFd,
     char destHostCopy[MAXBUF] = "\0";
 
     headerPtr->remain[0] = '\0';
-    strcpy(destHostCopy, destHost);
-    strcat(destHostCopy, "\r\n");
-    strcpy(headerPtr->Host, destHostCopy);
+    sprintf(headerPtr->Host, "%s\r\n", destHost);
 
     do
     {
