@@ -11,6 +11,7 @@
 void doit(int fd);
 void read_requesthdrs(rio_t* rp);
 int parse_uri(char* uri, char* filename, char* cgiargs);
+void serve_headers(int fd, char* filename, int filesize);
 void serve_static(int fd, char* filename, int filesize);
 void get_filetype(char* filename, char* filetype);
 void serve_dynamic(int fd, char* filename, char* cgiargs);
@@ -61,7 +62,7 @@ void doit(int connfd) {
     sscanf(rawReq, "%s %s %s", method, uri, version);
     printf("req in [%s %s %s]\n", method, uri, version);
 
-    if (strcasecmp(method, "GET"))  // returns not "\0" when it's different
+    if (strcmp(method, "GET") && strcmp(method, "HEAD"))
     {
         clienterror(connfd, method, "501", "GET method only",
                     "Server does not serve such thing.");
@@ -99,8 +100,11 @@ void doit(int connfd) {
                         "Server does not serve such thing.");
             return;
         }
-        printf("serving static ...\n");
-        serve_static(connfd, filename, sbuf.st_size);
+        printf("[%s] serving static ...\n", method);
+        if (strcmp(method, "HEAD") == 0)
+            serve_headers(connfd, filename, sbuf.st_size);
+        else if (strcmp(method, "GET") == 0)
+            serve_static(connfd, filename, sbuf.st_size);
     }
     else if (isStatic == 2)
     {
@@ -184,6 +188,24 @@ int parse_uri(char* uri, char* filename, char* cgiargs) {
         return 1;
     }
     return -1;
+}
+
+void serve_headers(int fd, char* filename, int filesize) {
+    char filetype[MAXLINE], buf[MAXBUF];
+
+    /* Send response headers to client */
+    get_filetype(filename, filetype);
+    sprintf(buf, "HTTP/1.0 200 OK\r\n");
+    sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+    sprintf(buf, "%sConnection: close\r\n", buf);
+    sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
+    sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
+
+    Rio_writen(fd, buf, strlen(buf));
+    printf("Response headers:\n");
+    printf("%s", buf);
+
+    return;
 }
 
 void serve_static(int fd, char* filename, int filesize) {
