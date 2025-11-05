@@ -46,8 +46,7 @@ int main(int argc, char** argv) {
     appendHeaders header;
     appendHeaders* headerPtr = &header;
 
-    // Forwarding Client File Descriptor with `open_clientfd()`
-    int fwdClieFd;
+    int fwdClieFd;  // Forwarding Client File Descriptor with `open_clientfd()`
 
     /* Check command line args */
     if (argc != 2)
@@ -68,18 +67,7 @@ int main(int argc, char** argv) {
         parse_uri(uri, destHost, destPort, destSuffix);
         strcpy(destVersion, "HTTP/1.0");
 
-        /* START_debug: */
-        // printf("----- originHost: %s\n", originHost);
-        // printf("----- originPort: %s\n", originPort);
-        // printf("----- originVersion: %s\n", version);
-        // printf("------- destHost: %s\n", destHost);
-        // printf("------- destPort: %s\n", destPort);
-        // printf("------- destSuffix: %s\n", destSuffix);
-        // printf("------- destVersion: %s\n", destVersion);
-        /* END___debug: */
-
         read_requesthdrs(originConnFd, &rp, headerPtr, destHost);
-
         fwdClieFd = Open_clientfd(destHost, destPort);
         forward_request(fwdClieFd, method, destSuffix, destVersion, headerPtr);
         recieve_response(fwdClieFd, originConnFd);
@@ -146,11 +134,6 @@ void read_requesthdrs(int originConnFd,
         if (strcmp(headers, "\r\n") == 0) break;
         strncat(headerPtr->remain, headers, readSize);
     } while (readSize > 0);
-    /* START_debug: */
-    // printf(">>>>>>>>>>>>>>>>>>>>\n");
-    // printf("%s", headerPtr->remain);
-    // printf("<<<<<<<<<<<<<<<<<<<<\n");
-    /* END___debug: */
 }
 
 void forward_request(int fwdClieFd,
@@ -162,14 +145,6 @@ void forward_request(int fwdClieFd,
 
     // create request Line
     sprintf(reqLine, "%s %s %s\r\n", method, destSuffix, destVersion);
-
-    /* START_debug: */
-    // printf("-------- header: %s", _Host);
-    // printf("-------- header: %s", _remain);
-    // printf("-------- header: %s", _Connection);
-    // printf("-------- header: %s", _ProxyConnection);
-    // printf("-------- header: %s", _UserAgent);
-    /* END___debug: */
 
     // send request Line
     rio_writen(fwdClieFd, reqLine, strlen(reqLine));
