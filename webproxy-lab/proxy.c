@@ -22,6 +22,11 @@ static const char* user_agent_hdr =
 void readReqLine(int fd, char* method, char* uri, char* version);
 void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix);
 void read_requesthdrs(rio_t* rp, appendHeaders* headerPtr, char* destHost);
+void forwardRequest(int clientFd,
+                    char* method,
+                    char* destSuffix,
+                    char* destVersion,
+                    appendHeaders* headerPtr);
 
 int main(int argc, char** argv) {
     int listenfd, connfd;
@@ -74,6 +79,7 @@ int main(int argc, char** argv) {
         printf("-------- header: remain %s", headerPtr->remain);
 
         clientFd = Open_clientfd(destHost, destPort);
+        forwardRequest(clientFd, method, destSuffix, destVersion, headerPtr);
         Close(connfd);
     }
 
@@ -137,4 +143,25 @@ void read_requesthdrs(rio_t* rp, appendHeaders* headerPtr, char* destHost) {
     strcpy(headerPtr->UserAgent, (char*)user_agent_hdr);
     strcpy(headerPtr->Connection, "close\r\n");
     strcpy(headerPtr->ProxyConnection, "close\r\n");
+}
+
+void forwardRequest(int clientFd,
+                    char* method,
+                    char* destSuffix,
+                    char* destVersion,
+                    appendHeaders* headerPtr) {
+    char reqLine[MAXLINE];
+    rio_t rp;
+
+    // create reqLine
+    strcpy(reqLine, method);
+    strcat(reqLine, " ");
+    strcat(reqLine, destSuffix);
+    strcat(reqLine, " ");
+    strcat(reqLine, destVersion);
+    strcat(reqLine, "\r\n");
+
+    rio_readinitb(&rp, clientFd);  // 리오 버퍼 초기화
+    // req line
+    rio_writen(clientFd, reqLine, strlen(reqLine));
 }
