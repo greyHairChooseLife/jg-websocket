@@ -160,7 +160,7 @@ void forward_request(int fwdClieFd,
 // recieve & toss: line, headers, empty-line, body
 void recieve_response(int fwdClieFd, int originConnFd) {
     rio_t rp;
-    size_t readSize;
+    size_t processed;
     char buf[MAXBUF] = "\0";
     char headers[MAXBUF] = "\0";  // res line & headers to toss
     // Content lenth string pointer
@@ -172,20 +172,20 @@ void recieve_response(int fwdClieFd, int originConnFd) {
     // process response line & headers
     do
     {
-        readSize = rio_readlineb(&rp, buf, MAXBUF);
+        processed = rio_readlineb(&rp, buf, MAXBUF);
         strcat(headers, buf);
         if (strcmp(buf, "\r\n") == 0) break;
         if ((p = strstr(buf, "Content-Length: ")) != NULL)
             sscanf(p, "Content-Length: %zu", &remain);
-    } while (readSize > 0);
+    } while (processed > 0);
     rio_writen(originConnFd, headers, strlen(headers));
 
     // process response body
     while (remain)
     {
-        readSize = rio_readnb(&rp, buf, MAXBUF);
-        rio_writen(originConnFd, buf, readSize);
-        remain -= readSize;
-        if (readSize <= 0) break;  // EOF or error
+        processed = rio_readnb(&rp, buf, MAXBUF);
+        rio_writen(originConnFd, buf, processed);
+        remain -= processed;
+        if (processed <= 0) break;  // EOF or error
     }
 }
