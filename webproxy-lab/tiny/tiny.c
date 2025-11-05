@@ -213,7 +213,10 @@ void serve_static(int fd, char* filename, int filesize) {
     char resHeaders[MAXBUF], filetype[MAXLINE];
     // for body
     int srcFd;
-    char* srcPtr;
+    rio_t rp;
+    char srcBuf[MAXBUF];
+    size_t processed;
+    size_t remain = filesize;
 
     // 1. send res header
     get_filetype(filename, filetype);
@@ -225,11 +228,15 @@ void serve_static(int fd, char* filename, int filesize) {
     Rio_writen(fd, resHeaders, strlen(resHeaders));
 
     // 2. send res body
-    srcFd = Open(filename, O_RDONLY, 0);
-    srcPtr = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcFd, 0);
-    Close(srcFd);
-    Rio_writen(fd, srcPtr, filesize);
-    Munmap(srcPtr, filesize);
+    srcFd = open(filename, O_RDONLY, 0);
+    rio_readinitb(&rp, srcFd);
+    while (remain)
+    {
+        processed = rio_readnb(&rp, srcBuf, MAXBUF);
+        rio_writen(fd, srcBuf, processed);
+        remain -= processed;
+        if (processed <= 0) break;  // EOF or error
+    }
 }
 
 void get_filetype(char* filename, char* filetype) {
