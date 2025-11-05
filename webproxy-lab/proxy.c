@@ -37,6 +37,8 @@ int main(int argc, char** argv) {
     appendHeaders header;
     appendHeaders* headerPtr = &header;
 
+    int clientFd;
+
     /* Check command line args */
     if (argc != 2)
     {
@@ -65,12 +67,13 @@ int main(int argc, char** argv) {
         rio_readinitb(&rp, connfd);
         read_requesthdrs(&rp, headerPtr, destHost);
 
-        printf("------- header: Host %s\n", headerPtr->Host);
-        printf("------- header: Connection %s\n", headerPtr->Connection);
-        printf("------- header: ProxyConn %s\n", headerPtr->ProxyConnection);
-        printf("------- header: UserAgent %s\n", headerPtr->UserAgent);
-        printf("------- header: remain %s\n", headerPtr->remain);
+        printf("-------- header: Host %s", headerPtr->Host);
+        printf("-------- header: Connection %s", headerPtr->Connection);
+        printf("-------- header: ProxyConn %s", headerPtr->ProxyConnection);
+        printf("-------- header: UserAgent %s", headerPtr->UserAgent);
+        printf("-------- header: remain %s", headerPtr->remain);
 
+        clientFd = Open_clientfd(destHost, destPort);
         Close(connfd);
     }
 
@@ -118,9 +121,12 @@ void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix) {
 void read_requesthdrs(rio_t* rp, appendHeaders* headerPtr, char* destHost) {
     char headers[MAXBUF];
     size_t readSize;
+    char destHostCopy[MAXBUF];
 
     headerPtr->remain[0] = '\0';
-    strcpy(headerPtr->Host, strcat(destHost, "\r\n"));
+    strcpy(destHostCopy, destHost);
+    strcat(destHostCopy, "\r\n");
+    strcpy(headerPtr->Host, destHostCopy);
 
     do
     {
