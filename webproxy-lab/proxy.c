@@ -152,8 +152,9 @@ void read_requesthdrs(int originConnFd,
     {
         readSize = rio_readlineb(&rp, headers, MAXBUF);
         strncat(headerPtr->remain, headers, readSize);
-    } while (strcmp(headers, "\r\n") != 0);
-
+        /* } while (strcmp(headers, "\r\n") != 0); */
+    } while (readSize != 0);
+    strncat(headerPtr->remain, "\r\n\r\n", strlen("\r\n\r\n"));
     strcpy(headerPtr->UserAgent, (char*)user_agent_hdr);
     strcpy(headerPtr->Connection, "close\r\n");
     strcpy(headerPtr->ProxyConnection, "close\r\n");
