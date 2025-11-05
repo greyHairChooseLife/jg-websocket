@@ -19,9 +19,10 @@ static const char* user_agent_hdr =
     "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 "
     "Firefox/10.0.3\r\n";
 
-void read_req_line(int fd, char* method, char* uri, char* version);
+void read_req_line(int fd, rio_t* rp, char* method, char* uri, char* version);
 void parse_uri(char* uri, char* destHost, char* destPort, char* destSuffix);
 void read_requesthdrs(int originConnFd,
+                      rio_t* rp,
                       appendHeaders* headerPtr,
                       char* destHost);
 void forward_request(int fwdClieFd,
@@ -32,6 +33,7 @@ void forward_request(int fwdClieFd,
 void recieve_response(int fwdClieFd, int originConnFd);
 
 int main(int argc, char** argv) {
+    rio_t rp;
     int listenfd, originConnFd;
     char originHost[MAXLINE], originPort[MAXLINE];
     socklen_t clientlen;
@@ -61,7 +63,8 @@ int main(int argc, char** argv) {
         originConnFd = Accept(listenfd, (SA*)&clientaddr, &clientlen);
         Getnameinfo((SA*)&clientaddr, clientlen, originHost, MAXLINE,
                     originPort, MAXLINE, 0);
-        read_req_line(originConnFd, method, uri, version);
+        rio_readinitb(&rp, originConnFd);
+        read_req_line(originConnFd, &rp, method, uri, version);
         parse_uri(uri, destHost, destPort, destSuffix);
         strcpy(destVersion, "HTTP/1.0");
 
@@ -75,7 +78,7 @@ int main(int argc, char** argv) {
         printf("------- destVersion: %s\n", destVersion);
         /* END___debug: */
 
-        read_requesthdrs(originConnFd, headerPtr, destHost);
+        read_requesthdrs(originConnFd, &rp, headerPtr, destHost);
 
         /* START_debug: */
         printf("-------- header: Host %s", headerPtr->Host);
@@ -95,13 +98,11 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-void read_req_line(int fd, char* method, char* uri, char* version) {
+void read_req_line(int fd, rio_t* rp, char* method, char* uri, char* version) {
     char buf[MAXBUF];
     char filename[MAXLINE], cgiargs[MAXLINE];
-    rio_t rp;
 
-    rio_readinitb(&rp, fd);
-    rio_readlineb(&rp, buf, MAXLINE);
+    rio_readlineb(rp, buf, MAXLINE);
 
     sscanf(buf, "%s %s %s", method, uri, version);
 }
@@ -134,14 +135,12 @@ void parse_uri(char* uri, char* destHost, char* destPort, char* destSuffix) {
 }
 
 void read_requesthdrs(int originConnFd,
+                      rio_t* rp,
                       appendHeaders* headerPtr,
                       char* destHost) {
-    rio_t rp;
     char headers[MAXBUF];
     size_t readSize;
     char destHostCopy[MAXBUF];
-
-    rio_readinitb(&rp, originConnFd);
 
     headerPtr->remain[0] = '\0';
     strcpy(destHostCopy, destHost);
@@ -150,7 +149,7 @@ void read_requesthdrs(int originConnFd,
 
     do
     {
-        readSize = rio_readlineb(&rp, headers, MAXBUF);
+        readSize = rio_readlineb(rp, headers, MAXBUF);
         strncat(headerPtr->remain, headers, readSize);
         /* } while (strcmp(headers, "\r\n") != 0); */
     } while (readSize != 0);
