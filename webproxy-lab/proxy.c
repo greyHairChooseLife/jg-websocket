@@ -69,24 +69,16 @@ int main(int argc, char** argv) {
         strcpy(destVersion, "HTTP/1.0");
 
         /* START_debug: */
-        printf("----- originHost: %s\n", originHost);
-        printf("----- originPort: %s\n", originPort);
-        printf("----- originVersion: %s\n", version);
-        printf("------- destHost: %s\n", destHost);
-        printf("------- destPort: %s\n", destPort);
-        printf("------- destSuffix: %s\n", destSuffix);
-        printf("------- destVersion: %s\n", destVersion);
+        // printf("----- originHost: %s\n", originHost);
+        // printf("----- originPort: %s\n", originPort);
+        // printf("----- originVersion: %s\n", version);
+        // printf("------- destHost: %s\n", destHost);
+        // printf("------- destPort: %s\n", destPort);
+        // printf("------- destSuffix: %s\n", destSuffix);
+        // printf("------- destVersion: %s\n", destVersion);
         /* END___debug: */
 
         read_requesthdrs(originConnFd, &rp, headerPtr, destHost);
-
-        /* START_debug: */
-        printf("-------- header: Host %s", headerPtr->Host);
-        printf("-------- header: Connection %s", headerPtr->Connection);
-        printf("-------- header: ProxyConn %s", headerPtr->ProxyConnection);
-        printf("-------- header: UserAgent %s", headerPtr->UserAgent);
-        printf("-------- header: remain %s", headerPtr->remain);
-        /* END___debug: */
 
         fwdClieFd = Open_clientfd(destHost, destPort);
         forward_request(fwdClieFd, method, destSuffix, destVersion, headerPtr);
@@ -153,8 +145,11 @@ void read_requesthdrs(int originConnFd,
         if (strcmp(headers, "\r\n") == 0) break;
         strncat(headerPtr->remain, headers, readSize);
     } while (readSize > 0);
-    } while (readSize != 0);
-    strncat(headerPtr->remain, "\r\n\r\n", strlen("\r\n\r\n"));
+    /* START_debug: */
+    // printf(">>>>>>>>>>>>>>>>>>>>\n");
+    // printf("%s", headerPtr->remain);
+    // printf("<<<<<<<<<<<<<<<<<<<<\n");
+    /* END___debug: */
     strcpy(headerPtr->UserAgent, (char*)user_agent_hdr);
     strcpy(headerPtr->Connection, "close\r\n");
     strcpy(headerPtr->ProxyConnection, "close\r\n");
@@ -193,6 +188,15 @@ void forward_request(int fwdClieFd,
     strcpy(_ProxyConnection, "Proxy-Connection: ");
     strcat(_ProxyConnection, headerPtr->ProxyConnection);
     strcat(_remain, headerPtr->remain);
+
+    /* START_debug: */
+    // printf("-------- header: %s", _Host);
+    // printf("-------- header: %s", _remain);
+    // printf("-------- header: %s", _Connection);
+    // printf("-------- header: %s", _ProxyConnection);
+    // printf("-------- header: %s", _UserAgent);
+    /* END___debug: */
+
     rio_writen(fwdClieFd, _Host, strlen(_Host));
     rio_writen(fwdClieFd, _remain, strlen(_remain));
     rio_writen(fwdClieFd, _Connection, strlen(_Connection));
@@ -216,14 +220,15 @@ void recieve_response(int fwdClieFd, int originConnFd) {
     do
     {
         readSize = rio_readlineb(&rp, readBuf, MAXBUF);
-        rio_writen(originConnFd, readBuf, strlen(readBuf));
+        rio_writen(originConnFd, readBuf, readSize);
         /* printf("recieved line & headers: %s\n", readBuf); */
         if ((p = strstr(readBuf, "Content-Length: ")) != NULL)
         {
             // 문자열에서 포멧을 지정해 바로 담을 수 있다.
             sscanf(p, "Content-Length: %zu", &contentLength);
         }
-    } while (strcmp(readBuf, "\r\n") != 0);
+        /* } while (strcmp(readBuf, "\r\n") != 0); */
+    } while (readSize != 0);
 
     if (contentLength <= 0) return;
     do
