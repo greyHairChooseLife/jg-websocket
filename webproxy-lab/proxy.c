@@ -9,15 +9,15 @@
 typedef struct {
     char Host[MAXLINE];
     char UserAgent[MAXLINE];  // User-Agent
-    char Connection[MAXLINE];
-    char ProxyConnection[MAXLINE];  // Proxy-Connection
+    char Conn[MAXLINE];       // Connection
+    char PConn[MAXLINE];      // Proxy-Connection
     char remain[MAXLINE];
 } appendHeaders;
 
 /* You won't lose style points for including this long line in your code */
 static const char* user_agent_hdr =
     "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 "
-    "Firefox/10.0.3\r\n";
+    "Firefox/10.0.3";
 
 void read_req_line(int fd, rio_t* rp, char* method, char* uri, char* version);
 void parse_uri(char* uri, char* destHost, char* destPort, char* destSuffix);
@@ -134,9 +134,12 @@ void read_requesthdrs(int originConnFd,
     size_t readSize;
     char destHostCopy[MAXBUF] = "\0";
 
-    headerPtr->remain[0] = '\0';
-    sprintf(headerPtr->Host, "%s\r\n", destHost);
+    sprintf(headerPtr->Host, "Host: %s\r\n", destHost);
+    sprintf(headerPtr->UserAgent, "User-Agent: %s\r\n", (char*)user_agent_hdr);
+    sprintf(headerPtr->Conn, "Connection: close\r\n");
+    sprintf(headerPtr->PConn, "Proxy-Connection: close\r\n");
 
+    strcpy(headerPtr->remain, "");
     do
     {
         readSize = rio_readlineb(rp, headers, MAXBUF);
@@ -148,9 +151,6 @@ void read_requesthdrs(int originConnFd,
     // printf("%s", headerPtr->remain);
     // printf("<<<<<<<<<<<<<<<<<<<<\n");
     /* END___debug: */
-    strcpy(headerPtr->UserAgent, (char*)user_agent_hdr);
-    strcpy(headerPtr->Connection, "close\r\n");
-    strcpy(headerPtr->ProxyConnection, "close\r\n");
 }
 
 void forward_request(int fwdClieFd,
@@ -159,20 +159,9 @@ void forward_request(int fwdClieFd,
                      char* destVersion,
                      appendHeaders* headerPtr) {
     char reqLine[MAXLINE];
-    char _Host[MAXLINE];
-    char _UserAgent[MAXLINE];  // User-Agent
-    char _Connection[MAXLINE];
-    char _PConnection[MAXLINE];  // Proxy-Connection
-    char _remain[MAXLINE];
 
     // create request Line
     sprintf(reqLine, "%s %s %s\r\n", method, destSuffix, destVersion);
-    // create request headers
-    sprintf(_Host, "Host: %s", headerPtr->Host);
-    sprintf(_UserAgent, "User-Agent: %s", headerPtr->UserAgent);
-    sprintf(_Connection, "Connection: %s", headerPtr->Connection);
-    sprintf(_PConnection, "Proxy-Connection: %s", headerPtr->ProxyConnection);
-    sprintf(_remain, "%s", headerPtr->remain);
 
     /* START_debug: */
     // printf("-------- header: %s", _Host);
@@ -185,11 +174,11 @@ void forward_request(int fwdClieFd,
     // send request Line
     rio_writen(fwdClieFd, reqLine, strlen(reqLine));
     // send request headers
-    rio_writen(fwdClieFd, _Host, strlen(_Host));
-    rio_writen(fwdClieFd, _remain, strlen(_remain));
-    rio_writen(fwdClieFd, _Connection, strlen(_Connection));
-    rio_writen(fwdClieFd, _PConnection, strlen(_PConnection));
-    rio_writen(fwdClieFd, _UserAgent, strlen(_UserAgent));
+    rio_writen(fwdClieFd, headerPtr->Host, strlen(headerPtr->Host));
+    rio_writen(fwdClieFd, headerPtr->remain, strlen(headerPtr->remain));
+    rio_writen(fwdClieFd, headerPtr->Conn, strlen(headerPtr->Conn));
+    rio_writen(fwdClieFd, headerPtr->PConn, strlen(headerPtr->PConn));
+    rio_writen(fwdClieFd, headerPtr->UserAgent, strlen(headerPtr->UserAgent));
     rio_writen(fwdClieFd, "\r\n", strlen("\r\n"));
 }
 
