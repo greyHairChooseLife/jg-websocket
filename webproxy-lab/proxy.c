@@ -186,5 +186,6 @@ void recieve_response(int fwdClieFd, int originConnFd) {
         readSize = rio_readnb(&rp, buf, MAXBUF);
         rio_writen(originConnFd, buf, readSize);
         remain -= readSize;
+        if (readSize <= 0) break;  // EOF or error
     }
 }
