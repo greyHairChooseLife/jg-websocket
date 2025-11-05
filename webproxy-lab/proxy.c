@@ -205,37 +205,34 @@ void forward_request(int fwdClieFd,
     rio_writen(fwdClieFd, "\r\n", strlen("\r\n"));
 }
 
-// recieve: line, headers, empty-line, body
+// recieve & toss: line, headers, empty-line, body
 void recieve_response(int fwdClieFd, int originConnFd) {
     rio_t rp;
-    char readBuf[MAXBUF];
     size_t readSize;
-    size_t totalReadSize = 0;
+    char buf[MAXBUF] = "\0";
+    char headers[MAXBUF] = "\0";  // res line & headers to toss
     // Content lenth string pointer
     char* p;
-    size_t contentLength = 0;
+    size_t remain = 0;  // content length
 
     rio_readinitb(&rp, fwdClieFd);
 
+    // process response line & headers
     do
     {
-        readSize = rio_readlineb(&rp, readBuf, MAXBUF);
-        rio_writen(originConnFd, readBuf, readSize);
-        /* printf("recieved line & headers: %s\n", readBuf); */
-        if ((p = strstr(readBuf, "Content-Length: ")) != NULL)
-        {
-            // 문자열에서 포멧을 지정해 바로 담을 수 있다.
-            sscanf(p, "Content-Length: %zu", &contentLength);
-        }
-        /* } while (strcmp(readBuf, "\r\n") != 0); */
-    } while (readSize != 0);
+        readSize = rio_readlineb(&rp, buf, MAXBUF);
+        strcat(headers, buf);
+        if (strcmp(buf, "\r\n") == 0) break;
+        if ((p = strstr(buf, "Content-Length: ")) != NULL)
+            sscanf(p, "Content-Length: %zu", &remain);
+    } while (readSize > 0);
+    rio_writen(originConnFd, headers, strlen(headers));
 
-    if (contentLength <= 0) return;
-    do
+    // process response body
+    while (remain)
     {
-        readSize = rio_readlineb(&rp, readBuf, MAXBUF);
-        totalReadSize += readSize;
-        rio_writen(originConnFd, readBuf, strlen(readBuf));
-        /* printf("recieved body: %s\n", readBuf); */
-    } while (totalReadSize != contentLength);
+        readSize = rio_readnb(&rp, buf, MAXBUF);
+        rio_writen(originConnFd, buf, readSize);
+        remain -= readSize;
+    }
 }
