@@ -161,33 +161,20 @@ void forward_request(int fwdClieFd,
                      char* destVersion,
                      appendHeaders* headerPtr) {
     char reqLine[MAXLINE];
-    char _Host[MAXLINE] = "\0";
-    char _UserAgent[MAXLINE] = "\0";  // User-Agent
-    char _Connection[MAXLINE] = "\0";
-    char _ProxyConnection[MAXLINE] = "\0";  // Proxy-Connection
-    char _remain[MAXLINE] = "\0";
+    char _Host[MAXLINE];
+    char _UserAgent[MAXLINE];  // User-Agent
+    char _Connection[MAXLINE];
+    char _PConnection[MAXLINE];  // Proxy-Connection
+    char _remain[MAXLINE];
 
-    // create reqLine
-    strcpy(reqLine, method);
-    strcat(reqLine, " ");
-    strcat(reqLine, destSuffix);
-    strcat(reqLine, " ");
-    strcat(reqLine, destVersion);
-    strcat(reqLine, "\r\n");
-
-    // req line
-    rio_writen(fwdClieFd, reqLine, strlen(reqLine));
-
-    // req headers
-    strcpy(_Host, "Host: ");
-    strcat(_Host, headerPtr->Host);
-    strcpy(_UserAgent, "User-Agent: ");
-    strcat(_UserAgent, headerPtr->UserAgent);
-    strcpy(_Connection, "Connection: ");
-    strcat(_Connection, headerPtr->Connection);
-    strcpy(_ProxyConnection, "Proxy-Connection: ");
-    strcat(_ProxyConnection, headerPtr->ProxyConnection);
-    strcat(_remain, headerPtr->remain);
+    // create request Line
+    sprintf(reqLine, "%s %s %s\r\n", method, destSuffix, destVersion);
+    // create request headers
+    sprintf(_Host, "Host: %s", headerPtr->Host);
+    sprintf(_UserAgent, "User-Agent: %s", headerPtr->UserAgent);
+    sprintf(_Connection, "Connection: %s", headerPtr->Connection);
+    sprintf(_PConnection, "Proxy-Connection: %s", headerPtr->ProxyConnection);
+    sprintf(_remain, "%s", headerPtr->remain);
 
     /* START_debug: */
     // printf("-------- header: %s", _Host);
@@ -197,10 +184,13 @@ void forward_request(int fwdClieFd,
     // printf("-------- header: %s", _UserAgent);
     /* END___debug: */
 
+    // send request Line
+    rio_writen(fwdClieFd, reqLine, strlen(reqLine));
+    // send request headers
     rio_writen(fwdClieFd, _Host, strlen(_Host));
     rio_writen(fwdClieFd, _remain, strlen(_remain));
     rio_writen(fwdClieFd, _Connection, strlen(_Connection));
-    rio_writen(fwdClieFd, _ProxyConnection, strlen(_ProxyConnection));
+    rio_writen(fwdClieFd, _PConnection, strlen(_PConnection));
     rio_writen(fwdClieFd, _UserAgent, strlen(_UserAgent));
     rio_writen(fwdClieFd, "\r\n", strlen("\r\n"));
 }
