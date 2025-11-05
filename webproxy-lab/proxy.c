@@ -151,7 +151,11 @@ void forwardRequest(int clientFd,
                     char* destVersion,
                     appendHeaders* headerPtr) {
     char reqLine[MAXLINE];
-    rio_t rp;
+    char _Host[MAXLINE];
+    char _UserAgent[MAXLINE];  // User-Agent
+    char _Connection[MAXLINE];
+    char _ProxyConnection[MAXLINE];  // Proxy-Connection
+    char _remain[MAXLINE];
 
     // create reqLine
     strcpy(reqLine, method);
@@ -161,7 +165,22 @@ void forwardRequest(int clientFd,
     strcat(reqLine, destVersion);
     strcat(reqLine, "\r\n");
 
-    rio_readinitb(&rp, clientFd);  // 리오 버퍼 초기화
     // req line
     rio_writen(clientFd, reqLine, strlen(reqLine));
+
+    // req headers
+    strcpy(_Host, "Host: ");
+    strcat(_Host, headerPtr->Host);
+    strcpy(_UserAgent, "User-Agent: ");
+    strcat(_UserAgent, headerPtr->UserAgent);
+    strcpy(_Connection, "Connection: ");
+    strcat(_Connection, headerPtr->Connection);
+    strcpy(_ProxyConnection, "Proxy-Connection: ");
+    strcat(_ProxyConnection, headerPtr->ProxyConnection);
+    strcat(_remain, headerPtr->remain);
+    rio_writen(clientFd, _Host, strlen(_Host));
+    rio_writen(clientFd, _Connection, strlen(_Connection));
+    rio_writen(clientFd, _ProxyConnection, strlen(_ProxyConnection));
+    rio_writen(clientFd, _UserAgent, strlen(_UserAgent));
+    rio_writen(clientFd, _remain, strlen(_remain));
 }
