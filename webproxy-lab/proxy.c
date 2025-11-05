@@ -21,7 +21,7 @@ static const char* user_agent_hdr =
 
 void readReqLine(int fd, char* method, char* uri, char* version);
 void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix);
-void read_requesthdrs(rio_t* rp, appendHeaders* headerPtr, char* destHost);
+void read_requesthdrs(int connFd, appendHeaders* headerPtr, char* destHost);
 void forwardRequest(int clientFd,
                     char* method,
                     char* destSuffix,
@@ -29,7 +29,7 @@ void forwardRequest(int clientFd,
                     appendHeaders* headerPtr);
 
 int main(int argc, char** argv) {
-    int listenfd, connfd;
+    int listenfd, connFd;
     char originHost[MAXLINE], originPort[MAXLINE];
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
@@ -38,7 +38,6 @@ int main(int argc, char** argv) {
     char destHost[MAXLINE], destPort[MAXLINE], destSuffix[MAXLINE],
         destVersion[MAXLINE];
 
-    rio_t rp;
     appendHeaders header;
     appendHeaders* headerPtr = &header;
 
@@ -55,10 +54,10 @@ int main(int argc, char** argv) {
     while (1)
     {
         clientlen = sizeof(clientaddr);
-        connfd = Accept(listenfd, (SA*)&clientaddr, &clientlen);
+        connFd = Accept(listenfd, (SA*)&clientaddr, &clientlen);
         Getnameinfo((SA*)&clientaddr, clientlen, originHost, MAXLINE,
                     originPort, MAXLINE, 0);
-        readReqLine(connfd, method, uri, version);
+        readReqLine(connFd, method, uri, version);
         parseUri(uri, destHost, destPort, destSuffix);
         strcpy(destVersion, "HTTP/1.0");
         printf("----- originHost: %s\n", originHost);
@@ -69,8 +68,7 @@ int main(int argc, char** argv) {
         printf("------- destSuffix: %s\n", destSuffix);
         printf("------- destVersion: %s\n", destVersion);
 
-        rio_readinitb(&rp, connfd);
-        read_requesthdrs(&rp, headerPtr, destHost);
+        read_requesthdrs(connFd, headerPtr, destHost);
 
         printf("-------- header: Host %s", headerPtr->Host);
         printf("-------- header: Connection %s", headerPtr->Connection);
@@ -80,7 +78,7 @@ int main(int argc, char** argv) {
 
         clientFd = Open_clientfd(destHost, destPort);
         forwardRequest(clientFd, method, destSuffix, destVersion, headerPtr);
-        Close(connfd);
+        Close(connFd);
     }
 
     return 0;
@@ -124,10 +122,13 @@ void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix) {
     strcpy(destHost, result);
 }
 
-void read_requesthdrs(rio_t* rp, appendHeaders* headerPtr, char* destHost) {
+void read_requesthdrs(int connFd, appendHeaders* headerPtr, char* destHost) {
+    rio_t rp;
     char headers[MAXBUF];
     size_t readSize;
     char destHostCopy[MAXBUF];
+
+    rio_readinitb(&rp, connFd);
 
     headerPtr->remain[0] = '\0';
     strcpy(destHostCopy, destHost);
@@ -136,7 +137,7 @@ void read_requesthdrs(rio_t* rp, appendHeaders* headerPtr, char* destHost) {
 
     do
     {
-        readSize = rio_readlineb(rp, headers, MAXBUF);
+        readSize = rio_readlineb(&rp, headers, MAXBUF);
         strncat(headerPtr->remain, headers, readSize);
     } while (strcmp(headers, "\r\n") != 0);
 
