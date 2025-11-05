@@ -19,17 +19,19 @@ static const char* user_agent_hdr =
     "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 "
     "Firefox/10.0.3\r\n";
 
-void readReqLine(int fd, char* method, char* uri, char* version);
-void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix);
-void read_requesthdrs(int connFd, appendHeaders* headerPtr, char* destHost);
-void forwardRequest(int clientFd,
-                    char* method,
-                    char* destSuffix,
-                    char* destVersion,
-                    appendHeaders* headerPtr);
+void read_req_line(int fd, char* method, char* uri, char* version);
+void parse_uri(char* uri, char* destHost, char* destPort, char* destSuffix);
+void read_requesthdrs(int originConnFd,
+                      appendHeaders* headerPtr,
+                      char* destHost);
+void forward_request(int fwdClieFd,
+                     char* method,
+                     char* destSuffix,
+                     char* destVersion,
+                     appendHeaders* headerPtr);
 
 int main(int argc, char** argv) {
-    int listenfd, connFd;
+    int listenfd, originConnFd;
     char originHost[MAXLINE], originPort[MAXLINE];
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
@@ -41,7 +43,8 @@ int main(int argc, char** argv) {
     appendHeaders header;
     appendHeaders* headerPtr = &header;
 
-    int clientFd;
+    // Forwarding Client File Descriptor with `open_clientfd()`
+    int fwdClieFd;
 
     /* Check command line args */
     if (argc != 2)
@@ -54,12 +57,14 @@ int main(int argc, char** argv) {
     while (1)
     {
         clientlen = sizeof(clientaddr);
-        connFd = Accept(listenfd, (SA*)&clientaddr, &clientlen);
+        originConnFd = Accept(listenfd, (SA*)&clientaddr, &clientlen);
         Getnameinfo((SA*)&clientaddr, clientlen, originHost, MAXLINE,
                     originPort, MAXLINE, 0);
-        readReqLine(connFd, method, uri, version);
-        parseUri(uri, destHost, destPort, destSuffix);
+        read_req_line(originConnFd, method, uri, version);
+        parse_uri(uri, destHost, destPort, destSuffix);
         strcpy(destVersion, "HTTP/1.0");
+
+        /* START_debug: */
         printf("----- originHost: %s\n", originHost);
         printf("----- originPort: %s\n", originPort);
         printf("----- originVersion: %s\n", version);
@@ -67,24 +72,28 @@ int main(int argc, char** argv) {
         printf("------- destPort: %s\n", destPort);
         printf("------- destSuffix: %s\n", destSuffix);
         printf("------- destVersion: %s\n", destVersion);
+        /* END___debug: */
 
-        read_requesthdrs(connFd, headerPtr, destHost);
+        read_requesthdrs(originConnFd, headerPtr, destHost);
 
+        /* START_debug: */
         printf("-------- header: Host %s", headerPtr->Host);
         printf("-------- header: Connection %s", headerPtr->Connection);
         printf("-------- header: ProxyConn %s", headerPtr->ProxyConnection);
         printf("-------- header: UserAgent %s", headerPtr->UserAgent);
         printf("-------- header: remain %s", headerPtr->remain);
+        /* END___debug: */
 
-        clientFd = Open_clientfd(destHost, destPort);
-        forwardRequest(clientFd, method, destSuffix, destVersion, headerPtr);
-        Close(connFd);
+        fwdClieFd = Open_clientfd(destHost, destPort);
+        forward_request(fwdClieFd, method, destSuffix, destVersion, headerPtr);
+
+        Close(originConnFd);
     }
 
     return 0;
 }
 
-void readReqLine(int fd, char* method, char* uri, char* version) {
+void read_req_line(int fd, char* method, char* uri, char* version) {
     char buf[MAXBUF];
     char filename[MAXLINE], cgiargs[MAXLINE];
     rio_t rp;
@@ -95,7 +104,7 @@ void readReqLine(int fd, char* method, char* uri, char* version) {
     sscanf(buf, "%s %s %s", method, uri, version);
 }
 
-void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix) {
+void parse_uri(char* uri, char* destHost, char* destPort, char* destSuffix) {
     char* hostPtr;
     char result[MAXLINE];
     char *suffixStartPtr, *portStartPtr;
@@ -122,13 +131,15 @@ void parseUri(char* uri, char* destHost, char* destPort, char* destSuffix) {
     strcpy(destHost, result);
 }
 
-void read_requesthdrs(int connFd, appendHeaders* headerPtr, char* destHost) {
+void read_requesthdrs(int originConnFd,
+                      appendHeaders* headerPtr,
+                      char* destHost) {
     rio_t rp;
     char headers[MAXBUF];
     size_t readSize;
     char destHostCopy[MAXBUF];
 
-    rio_readinitb(&rp, connFd);
+    rio_readinitb(&rp, originConnFd);
 
     headerPtr->remain[0] = '\0';
     strcpy(destHostCopy, destHost);
@@ -146,11 +157,11 @@ void read_requesthdrs(int connFd, appendHeaders* headerPtr, char* destHost) {
     strcpy(headerPtr->ProxyConnection, "close\r\n");
 }
 
-void forwardRequest(int clientFd,
-                    char* method,
-                    char* destSuffix,
-                    char* destVersion,
-                    appendHeaders* headerPtr) {
+void forward_request(int fwdClieFd,
+                     char* method,
+                     char* destSuffix,
+                     char* destVersion,
+                     appendHeaders* headerPtr) {
     char reqLine[MAXLINE];
     char _Host[MAXLINE];
     char _UserAgent[MAXLINE];  // User-Agent
@@ -167,7 +178,7 @@ void forwardRequest(int clientFd,
     strcat(reqLine, "\r\n");
 
     // req line
-    rio_writen(clientFd, reqLine, strlen(reqLine));
+    rio_writen(fwdClieFd, reqLine, strlen(reqLine));
 
     // req headers
     strcpy(_Host, "Host: ");
@@ -179,9 +190,9 @@ void forwardRequest(int clientFd,
     strcpy(_ProxyConnection, "Proxy-Connection: ");
     strcat(_ProxyConnection, headerPtr->ProxyConnection);
     strcat(_remain, headerPtr->remain);
-    rio_writen(clientFd, _Host, strlen(_Host));
-    rio_writen(clientFd, _Connection, strlen(_Connection));
-    rio_writen(clientFd, _ProxyConnection, strlen(_ProxyConnection));
-    rio_writen(clientFd, _UserAgent, strlen(_UserAgent));
-    rio_writen(clientFd, _remain, strlen(_remain));
+    rio_writen(fwdClieFd, _Host, strlen(_Host));
+    rio_writen(fwdClieFd, _Connection, strlen(_Connection));
+    rio_writen(fwdClieFd, _ProxyConnection, strlen(_ProxyConnection));
+    rio_writen(fwdClieFd, _UserAgent, strlen(_UserAgent));
+    rio_writen(fwdClieFd, _remain, strlen(_remain));
 }
