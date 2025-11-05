@@ -138,9 +138,9 @@ void read_requesthdrs(int originConnFd,
                       rio_t* rp,
                       appendHeaders* headerPtr,
                       char* destHost) {
-    char headers[MAXBUF];
+    char headers[MAXBUF] = "\0";
     size_t readSize;
-    char destHostCopy[MAXBUF];
+    char destHostCopy[MAXBUF] = "\0";
 
     headerPtr->remain[0] = '\0';
     strcpy(destHostCopy, destHost);
@@ -165,11 +165,11 @@ void forward_request(int fwdClieFd,
                      char* destVersion,
                      appendHeaders* headerPtr) {
     char reqLine[MAXLINE];
-    char _Host[MAXLINE];
-    char _UserAgent[MAXLINE];  // User-Agent
-    char _Connection[MAXLINE];
-    char _ProxyConnection[MAXLINE];  // Proxy-Connection
-    char _remain[MAXLINE];
+    char _Host[MAXLINE] = "\0";
+    char _UserAgent[MAXLINE] = "\0";  // User-Agent
+    char _Connection[MAXLINE] = "\0";
+    char _ProxyConnection[MAXLINE] = "\0";  // Proxy-Connection
+    char _remain[MAXLINE] = "\0";
 
     // create reqLine
     strcpy(reqLine, method);
@@ -193,6 +193,7 @@ void forward_request(int fwdClieFd,
     strcat(_ProxyConnection, headerPtr->ProxyConnection);
     strcat(_remain, headerPtr->remain);
     rio_writen(fwdClieFd, _Host, strlen(_Host));
+    rio_writen(fwdClieFd, _remain, strlen(_remain));
     rio_writen(fwdClieFd, _Connection, strlen(_Connection));
     rio_writen(fwdClieFd, _ProxyConnection, strlen(_ProxyConnection));
     rio_writen(fwdClieFd, _UserAgent, strlen(_UserAgent));
