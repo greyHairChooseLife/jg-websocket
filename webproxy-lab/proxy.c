@@ -29,6 +29,7 @@ void forward_request(int fwdClieFd,
                      char* destSuffix,
                      char* destVersion,
                      appendHeaders* headerPtr);
+void recieve_response(int fwdClieFd, int originConnFd);
 
 int main(int argc, char** argv) {
     int listenfd, originConnFd;
@@ -86,6 +87,7 @@ int main(int argc, char** argv) {
 
         fwdClieFd = Open_clientfd(destHost, destPort);
         forward_request(fwdClieFd, method, destSuffix, destVersion, headerPtr);
+        recieve_response(fwdClieFd, originConnFd);
 
         Close(originConnFd);
     }
@@ -195,4 +197,36 @@ void forward_request(int fwdClieFd,
     rio_writen(fwdClieFd, _ProxyConnection, strlen(_ProxyConnection));
     rio_writen(fwdClieFd, _UserAgent, strlen(_UserAgent));
     rio_writen(fwdClieFd, _remain, strlen(_remain));
+}
+
+// recieve: line, headers, empty-line, body
+void recieve_response(int fwdClieFd, int originConnFd) {
+    rio_t rp;
+    char readBuf[MAXBUF];
+    size_t readSize;
+    size_t totalReadSize = 0;
+    // Content lenth string pointer
+    char* p;
+    size_t contentLength = 0;
+
+    rio_readinitb(&rp, fwdClieFd);
+
+    do
+    {
+        readSize = rio_readlineb(&rp, readBuf, MAXBUF);
+        printf("recieved line & headers: %s", readBuf);
+        if ((p = strstr(readBuf, "Content-Length: ")) != NULL)
+        {
+            // 문자열에서 포멧을 지정해 바로 담을 수 있다.
+            sscanf(p, "Content-Length: %zu", &contentLength);
+        }
+    } while (strcmp(readBuf, "\r\n") != 0);
+
+    if (contentLength <= 0) return;
+    do
+    {
+        readSize = rio_readlineb(&rp, readBuf, MAXBUF);
+        totalReadSize += readSize;
+        printf("recieved body: %s", readBuf);
+    } while (totalReadSize != contentLength);
 }
