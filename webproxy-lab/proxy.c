@@ -196,7 +196,7 @@ void forward_request(int fwdClieFd,
     rio_writen(fwdClieFd, _Connection, strlen(_Connection));
     rio_writen(fwdClieFd, _ProxyConnection, strlen(_ProxyConnection));
     rio_writen(fwdClieFd, _UserAgent, strlen(_UserAgent));
-    rio_writen(fwdClieFd, _remain, strlen(_remain));
+    rio_writen(fwdClieFd, "\r\n", strlen("\r\n"));
 }
 
 // recieve: line, headers, empty-line, body
